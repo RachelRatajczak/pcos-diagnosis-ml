@@ -11,7 +11,6 @@ It contains 1000 entries with five main features: Age, BMI, Menstrual Irregulari
 
 - data/ ← CSV dataset
 - notebooks/ ← R Markdown file with analysis, modeling, and plots
-- figures/ ← Visualizations exported from analysis
 - report/ ← PDF of the full project report
 - README.md ← This file
 
