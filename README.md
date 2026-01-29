@@ -31,6 +31,8 @@ It contains 1000 entries with five main features: Age, BMI, Menstrual Irregulari
 1. Clone the repository:
 ```bash
 git clone https://github.com/RachelRatajczak/pcos-diagnosis-ml.git
+```
+
 2. Open the notebooks/pcos_analysis.Rmd in RStudio to explore the analysis and run the code.
 3. View the full report in report/PCOS_ML_Report.pdf.
 
