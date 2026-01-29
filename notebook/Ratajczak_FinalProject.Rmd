@@ -1,0 +1,575 @@
+---
+title: "Final Project: PCOS Diagnosis Prediction"
+output: html_notebook
+author: Rachel Ratajczak 
+---
+
+### Library Declaration
+```{R}
+library(ggplot2)
+library(corrplot)
+library(dplyr)
+library(GGally)
+library(themis)
+library(smotefamily)
+library(caret)
+library(pROC)
+library(randomForest)
+library(onehot)
+library(mltools)
+library(data.table)
+```
+
+
+### Exploratory Data Analysis & Preprocessing 
+```{R}
+# Download the data set 
+pcos_data <- read.csv("pcos_dataset.csv")
+
+str(pcos_data)
+head(pcos_data)
+```
+
+```{R}
+summary(pcos_data)
+
+# Working variables 
+class(pcos_data$Age)
+class(pcos_data$BMI)
+class(pcos_data$Menstrual_Irregularity)
+class(pcos_data$Testosterone_Level.ng.dL.)
+class(pcos_data$Antral_Follicle_Count)
+
+# Target variable 
+class(pcos_data$PCOS_Diagnosis)
+```
+
+Age: is an integer (whole number) variable that is continuous, which progresses continuously overtime. 
+```{R}
+# Histogram for Age distribution
+ggplot(pcos_data, aes(x = Age)) + geom_histogram(binwidth = 0.5, fill = "blue", color = "black") + labs(title = "Age Distribution")
+
+# Box plot for age by pcos diagnosis 
+ggplot(pcos_data, aes(x = factor(PCOS_Diagnosis), y = Age)) + geom_boxplot() + labs(title = "Age by PCOS Diagnosis")
+
+# Correlation coefficient 
+age_correlation <- cor(pcos_data$Age, pcos_data$PCOS_Diagnosis)
+age_correlation
+
+```
+
+
+BMI: is a numeric (decimal number) variable that is continuous, which can fluctuate continuously overtime. 
+```{R}
+# Histogram for BMI distribution
+ggplot(pcos_data, aes(x = BMI)) + geom_histogram(binwidth = 0.3, fill = "green", color = "black") + labs(title = "BMI Distribution")
+
+# Box plot for bmi by pcos diagnosis 
+ggplot(pcos_data, aes(x = factor(PCOS_Diagnosis), y = BMI)) + geom_boxplot() + labs(title = "BMI by PCOS Diagnosis")
+
+# Correlation coefficient 
+bmi_correlation <- cor(pcos_data$BMI, pcos_data$PCOS_Diagnosis)
+bmi_correlation
+```
+
+
+Testosterone_Level: is a numeric (decimal) discrete variable.
+```{R}
+# Histogram for Testosterone distribution
+ggplot(pcos_data, aes(x = Testosterone_Level.ng.dL.)) + geom_histogram(binwidth = 0.5, fill = "Red", color = "black") + labs(title = "Testosterone Distribution")
+
+# Box plot for Testosterone by pcos diagnosis 
+ggplot(pcos_data, aes(x = factor(PCOS_Diagnosis), y = Testosterone_Level.ng.dL.)) + geom_boxplot() + labs(title = "Testosterone by PCOS Diagnosis")
+
+# T test for testosterone
+t_test_result <- t.test(Testosterone_Level.ng.dL. ~ PCOS_Diagnosis, data = pcos_data)
+print(t_test_result)
+
+```
+
+
+Antral_Follicle_Count: is a integer (whole) discrete variable.
+```{R}
+# Histogram for Antral follicle count distribution
+ggplot(pcos_data, aes(x = Antral_Follicle_Count)) + geom_histogram(binwidth = 1, fill = "Orange", color = "black") + labs(title = "Antral Follicle Count Distribution")
+
+# Box plot for Antral follicle count by pcos diagnosis 
+ggplot(pcos_data, aes(x = factor(PCOS_Diagnosis), y = Antral_Follicle_Count)) + geom_boxplot() + labs(title = "Antral Follicle Count by PCOS Diagnosis")
+
+# T test for antral follicle count 
+t_test_result <- t.test(Antral_Follicle_Count ~ PCOS_Diagnosis, data = pcos_data)
+print(t_test_result)
+```
+
+
+Menstrual_Irregularity: binary numbers of 0 or 1 representing positive or negative menstrual irregularity, this is a integer variable that is representing categorical values.
+```{R}
+# Bar plot for Menstrual Irregularity 
+ggplot(pcos_data, aes(x = factor(Menstrual_Irregularity))) + geom_bar(fill = "orange") + labs(title = "Menstrual Irregularity Distribution")
+
+# Contingency table & chi square te
+contingency_table <- table(pcos_data$Menstrual_Irregularity, pcos_data$PCOS_Diagnosis)
+print(contingency_table)
+
+chi_square_result <- chisq.test(contingency_table)
+print(chi_square_result)
+
+```
+
+
+Further analysis of relationships among attributes.
+```{R}
+# Scatter plot for testosterone level by Antral follicle count 
+ggplot(pcos_data, aes(x = Testosterone_Level.ng.dL., y = Antral_Follicle_Count, color = factor(PCOS_Diagnosis))) + geom_point() + labs(title = "Testosterone Level vs. Antral Follicle Count")
+
+```
+
+
+PCOS_Diagnosis: binary numbers of 0 or 1 representing positive or negative pcos diagnosis, so this is a integer variable that represent categorical values. 
+```{R}
+# Bar plot for PCOS Diagnosis
+ggplot(pcos_data, aes(x = factor(PCOS_Diagnosis))) + geom_bar(fill = "purple") + labs(title = "PCOS Diagnosis Distribution")
+
+# Summary statistics by PCOS diagnosis
+pcos_data %>%
+  group_by(PCOS_Diagnosis) %>%
+  summarise(
+    mean_age = mean(Age, na.rm = TRUE),
+    mean_bmi = mean(BMI, na.rm = TRUE),
+    mean_testosterone = mean(Testosterone_Level.ng.dL., na.rm = TRUE),
+    mean_antral_follicle_count = mean(Antral_Follicle_Count, na.rm = TRUE)
+  )
+```
+
+#### Data Processing 
+
+##### Check for missing variables 
+```{R}
+# Check for missing variables 
+colSums(is.na(pcos_data))
+```
+The PCOS diagnosis data set does not contain any missing values.
+
+#### Check for data imbalance
+```{R}
+# Is the data balanced?
+
+table(pcos_data$PCOS_Diagnosis)
+majority_class_size <- max(table(pcos_data$PCOS_Diagnosis))
+minority_class_size <- min(table(pcos_data$PCOS_Diagnosis))
+imbalance_ratio <- majority_class_size / minority_class_size
+
+```
+
+##### Rebalance the data
+```{R}
+# Use SMOTE to rebalance the data
+#str(pcos_data$PCOS_Diagnosis)
+pcos_data$PCOS_Diagnosis <- as.factor(pcos_data$PCOS_Diagnosis)
+#str(pcos_data$PCOS_Diagnosis)
+
+set.seed(1)
+balanced_result <- SMOTE(X = pcos_data[, -6], target = pcos_data$PCOS_Diagnosis, K = 5, dup_size = 2)
+
+balanced_pcos <- data.frame(balanced_result$data)
+names(balanced_pcos)[ncol(balanced_pcos)] <- "PCOS_Diagnosis"
+balanced_pcos$PCOS_Diagnosis <- as.factor(balanced_pcos$PCOS_Diagnosis)
+
+#table(balanced_pcos$PCOS_Diagnosis)
+#unique(balanced_pcos$PCOS_Diagnosis)
+#table(balanced_pcos$PCOS_Diagnosis)
+
+str(balanced_pcos$PCOS_Diagnosis)
+
+#summary(balanced_pcos$PCOS_Diagnosis)
+```
+
+##### Scale the numeric data
+```{R}
+# #1. Age
+summary(balanced_pcos$Age)
+
+balanced_pcos$Age <- (balanced_pcos$Age - min(balanced_pcos$Age)) / (max(balanced_pcos$Age) - min(balanced_pcos$Age))
+balanced_pcos$Age <- cut(balanced_pcos$Age, breaks = 10, labels = FALSE, include.lowest = TRUE) %>% as.factor()
+
+class(balanced_pcos$Age)
+
+str(balanced_pcos$Age)
+
+```
+
+```{R}
+#2. BMI
+summary(balanced_pcos$BMI)
+
+balanced_pcos$BMI <- (balanced_pcos$BMI - min(balanced_pcos$BMI)) / (max(balanced_pcos$BMI) - min(balanced_pcos$BMI))
+balanced_pcos$BMI <- cut(balanced_pcos$BMI, breaks = 10, labels = FALSE, include.lowest = TRUE) %>% as.factor()
+
+summary(balanced_pcos$BMI)
+str(balanced_pcos$BMI)
+
+```
+
+```{R}
+#3. Testosterone 
+summary(balanced_pcos$Testosterone_Level.ng.dL.)
+
+balanced_pcos$Testosterone_Level.ng.dL. <- (balanced_pcos$Testosterone_Level.ng.dL. - min(balanced_pcos$Testosterone_Level.ng.dL.)) / (max(balanced_pcos$Testosterone_Level.ng.dL.) - min(balanced_pcos$Testosterone_Level.ng.dL.))
+balanced_pcos$Testosterone_Level.ng.dL. <- cut(balanced_pcos$Testosterone_Level.ng.dL., breaks = 10, labels = FALSE, include.lowest = TRUE) %>% as.factor()
+
+summary(balanced_pcos$Testosterone_Level.ng.dL.)
+str(balanced_pcos$Testosterone_Level.ng.dL.)
+
+```
+
+```{R}
+#4. Antral Follicle Count
+summary(balanced_pcos$Antral_Follicle_Count)
+
+balanced_pcos$Antral_Follicle_Count <- (balanced_pcos$Antral_Follicle_Count - min(balanced_pcos$Antral_Follicle_Count)) / (max(balanced_pcos$Antral_Follicle_Count) - min(balanced_pcos$Antral_Follicle_Count))
+balanced_pcos$Antral_Follicle_Count <- cut(balanced_pcos$Antral_Follicle_Count, breaks = 10, labels = FALSE, include.lowest = TRUE) %>% as.factor()
+
+summary(balanced_pcos$Antral_Follicle_Count)
+str(balanced_pcos$Antral_Follicle_Count)
+
+```
+
+```{R}
+str(balanced_pcos)
+
+balanced_pcos[] <- lapply(balanced_pcos, factor)
+
+str(balanced_pcos)
+
+```
+
+### Data Analysis and Experimental Results 
+
+##### Split the data into train and test
+```{R}
+#str(balanced_pcos)
+#summary(balanced_pcos)
+
+train_index <- suppressWarnings(createDataPartition(balanced_pcos$PCOS_Diagnosis, p = 0.8, list = FALSE))
+
+pcos_train <- balanced_pcos[train_index, ]
+pcos_test <- balanced_pcos[-train_index, ]
+
+# table(pcos_train$PCOS_Diagnosis)
+# table(pcos_test$PCOS_Diagnosis)
+
+str(pcos_train)
+str(pcos_test)
+```
+
+##### Create a benchmark
+```{R}
+# Convert target to numeric for roc and rmse calculations
+pcos_test$PCOS_Diagnosis <- as.numeric(as.character(pcos_test$PCOS_Diagnosis))
+
+# Benchmark for predicting the majority class
+majority_class <- names(which.max(table(pcos_train$PCOS_Diagnosis)))
+benchmark_preds <- rep(majority_class_test, nrow(pcos_test))
+
+benchmark_preds_factor <- factor(benchmark_preds, levels = levels(factor(pcos_test$PCOS_Diagnosis)))
+actual_values_factor <- factor(pcos_test$PCOS_Diagnosis, levels = levels(factor(pcos_test$PCOS_Diagnosis)))
+
+benchmark_preds_numeric <- as.numeric(benchmark_preds_factor) - 1
+actual_values_numeric <- as.numeric(actual_values_factor) - 1
+
+# Accuracy
+benchmark_accuracy <- sum(benchmark_preds == pcos_test$PCOS_Diagnosis) / nrow(pcos_test)
+cat("Benchmark accuracy on test set:", benchmark_accuracy, "\n")
+
+# Precision
+true_positives <- sum((benchmark_preds_numeric == 1) & (actual_values_numeric == 1))
+false_positives <- sum((benchmark_preds_numeric == 1) & (actual_values_numeric == 0))
+
+if (true_positives + false_positives == 0) {
+  benchmark_precision <- 0
+} else {
+  benchmark_precision <- true_positives / (true_positives + false_positives)
+}
+cat("Benchmark precision on test set:", benchmark_precision, "\n")
+
+# Recall
+benchmark_recall <- sensitivity(benchmark_preds_factor, actual_values_factor)
+cat("Benchmark recall on test set:", benchmark_recall, "\n")
+
+# AUC
+benchmark_roc <- roc(actual_values_factor, as.numeric(benchmark_preds))
+benchmark_auc <- auc(benchmark_roc)
+cat("Benchmark AUC on test set:", benchmark_auc, "\n")
+
+# RMSE
+benchmark_rmse <- sqrt(mean((as.numeric(benchmark_preds) - pcos_test$PCOS_Diagnosis)^2))
+cat("Benchmark RMSE on test set:", benchmark_rmse, "\n")
+
+```
+
+```{R}
+# Convert target variable back to factor 
+pcos_test$PCOS_Diagnosis <- factor(pcos_test$PCOS_Diagnosis, levels = c(0, 1))
+
+levels(pcos_test$PCOS_Diagnosis)
+str(pcos_test)
+table(pcos_test$PCOS_Diagnosis)
+
+#str(pcos_train)
+```
+
+
+##### Regularized Linear Regression Models 
+```{R}
+# Model 1: Lasso Logistic Regression model using “glmnet”, 5 fold cross validation, and tune the lambda parameter.
+set.seed(1)
+
+lasso <- train(
+  PCOS_Diagnosis ~ .,
+  data = pcos_train,
+  method = "glmnet",
+  metric = "Kappa",
+  trControl = trainControl("cv", number = 5),
+  tuneGrid = expand.grid(alpha = 1, lambda = 10^seq(-3,3, length = 100))
+)
+
+lasso_predictions = predict(lasso, pcos_test)
+conf_matrix <- confusionMatrix(lasso_predictions, pcos_test$PCOS_Diagnosis)
+
+precision <- conf_matrix$byClass["Pos Pred Value"]
+recall <- conf_matrix$byClass["Sensitivity"]
+f1_score <- (2 * precision * recall) / (precision + recall)
+roc_obj <- roc(pcos_test$PCOS_Diagnosis, as.numeric(lasso_predictions))
+auc <- auc(roc_obj)
+
+print(conf_matrix)
+cat("F1-score:", f1_score, "\n")
+cat("AUC-ROC:", auc, "\n")
+
+```
+
+```{R}
+coef(lasso$finalModel, lasso$bestTune$lambda)
+```
+
+```{R}
+# Model 2: Ridge logistic regression model using 5 fold cross validation and tune lambda.
+set.seed(1)
+
+ridge <-train(
+  PCOS_Diagnosis ~ . ,
+  data = pcos_train,
+  method = "glmnet",
+  metric="Kappa",
+  trControl= trainControl("cv", number = 5),
+  tuneGrid = expand.grid(alpha = 0, lambda = 10^seq(-3, 3, length = 100)))
+
+ridge_predictions <- predict(ridge, pcos_test)
+conf_matrix <- confusionMatrix(ridge_predictions, pcos_test$PCOS_Diagnosis)
+
+precision <- conf_matrix$byClass["Pos Pred Value"]
+recall <- conf_matrix$byClass["Sensitivity"]
+f1_score <- (2 * precision * recall) / (precision + recall)
+roc_obj <- roc(pcos_test$PCOS_Diagnosis, as.numeric(ridge_predictions))
+auc <- auc(roc_obj)
+
+print(conf_matrix)
+cat("F1-score:", f1_score, "\n")
+cat("AUC-ROC:", auc, "\n")
+```
+
+```{R}
+# Model 3: Elastic net logistic regression model using 5 fold cross validation and tune both lambda and alpha.
+
+set.seed(1)
+
+enet<-train(
+  PCOS_Diagnosis ~ . ,
+  data = pcos_train,
+  method = "glmnet",
+  trControl= trainControl("cv", number = 5),
+  tuneGrid= expand.grid(alpha = seq(0,1, length=10), lambda = 10^seq(-3, 3, length = 100)))
+
+enet_predictions <- predict(enet, pcos_test)
+conf_matrix <- confusionMatrix(enet_predictions, pcos_test$PCOS_Diagnosis)
+
+precision <- conf_matrix$byClass["Pos Pred Value"]
+recall <- conf_matrix$byClass["Sensitivity"]
+f1_score <- (2 * precision * recall) / (precision + recall)
+roc_obj <- roc(pcos_test$PCOS_Diagnosis, as.numeric(enet_predictions))
+auc <- auc(roc_obj)
+
+print(conf_matrix)
+cat("F1-score:", f1_score, "\n")
+cat("AUC-ROC:", auc, "\n")
+```
+
+
+##### Tree Ensemble Models 
+```{R}
+# Model 4: Random forest model using 5-fold cross validation and caret to auto-tune the model.
+
+set.seed(1)
+
+rf <- randomForest(PCOS_Diagnosis ~ ., data = pcos_train)
+ctrl <- trainControl(method = "cv", number = 5)
+grid_rf <- expand.grid(mtry = c(2, 4, 8, 16))
+
+m_rf <- train(PCOS_Diagnosis ~ .,
+              data = pcos_train,
+              method = "rf",
+              metric = "Kappa",
+              trControl = ctrl,
+              tuneGrid = grid_rf,
+              importance = T)
+m_rf
+
+rf_predictions <- predict(m_rf, pcos_test)
+conf_matrix <- confusionMatrix(rf_predictions, pcos_test$PCOS_Diagnosis)
+
+precision <- conf_matrix$byClass["Pos Pred Value"]
+recall <- conf_matrix$byClass["Sensitivity"]
+f1_score <- (2 * precision * recall) / (precision + recall)
+roc_obj <- roc(pcos_test$PCOS_Diagnosis, as.numeric(rf_predictions))
+auc <- auc(roc_obj)
+
+print(conf_matrix)
+cat("F1-score:", f1_score, "\n")
+cat("AUC-ROC:", auc, "\n")
+```
+
+```{R}
+varImp(m_rf)
+```
+
+
+```{R}
+# Model 5: Gradient Boosted Tree model using a 5 fold cross validation and caret to auto-tune the model.
+
+set.seed(1)
+
+gbm <- train(PCOS_Diagnosis ~ .,
+             data = pcos_train,
+             method = "gbm",
+             trControl = trainControl("cv", number = 5))
+
+gbm
+
+gbm_predictions <- predict(gbm, pcos_test)
+conf_matrix <- confusionMatrix(gbm_predictions, pcos_test$PCOS_Diagnosis)
+
+precision <- conf_matrix$byClass["Pos Pred Value"]
+recall <- conf_matrix$byClass["Sensitivity"]
+f1_score <- (2 * precision * recall) / (precision + recall)
+roc_obj <- roc(pcos_test$PCOS_Diagnosis, as.numeric(gbm_predictions))
+auc <- auc(roc_obj)
+
+print(conf_matrix)
+cat("F1-score:", f1_score, "\n")
+cat("AUC-ROC:", auc, "\n")
+```
+
+
+##### Complex Supervised Learning Algorithms 
+```{R}
+# Model 6: Support Vector Machine - Linear. Use preProc=c(“center”,”scale”), 5 fold cross validation, and caret auto-tune the model.
+
+set.seed(1)
+
+train_control <- trainControl(method = "cv", number = 5, preProc = c("center", "scale"))
+
+svmL <- train(PCOS_Diagnosis ~ .,
+                   data = pcos_train,
+                   method = "svmLinear",
+                   trControl = train_control,
+                   tuneLength = 10)
+
+svmL
+
+svmL_predictions <- predict(svmL, pcos_test)
+confusionMatrix(svmL_predictions, pcos_test$PCOS_Diagnosis)
+
+```
+
+```{R}
+# Model 7: Support Vector Machine - Radial 
+
+set.seed(1)
+
+train_control <- trainControl(method = "cv", number = 5, preProc = c("center", "scale"))
+
+svmR <- train(PCOS_Diagnosis ~ .,
+                   data = pcos_train,
+                   method = "svmRadial",
+                   trControl = train_control,
+                   tuneLength = 10)
+
+svmR
+
+svmR_predictions <- predict(svmR, pcos_test)
+confusionMatrix(svmR_predictions, pcos_test$PCOS_Diagnosis)
+
+```
+
+##### Neural Network Pre-processing and Evaluation
+```{R}
+# Create a data frame for the neural network 
+
+pcos_nn <- balanced_pcos
+#str(pcos_nn)
+
+train_index <- suppressWarnings(createDataPartition(pcos_nn$PCOS_Diagnosis, p = 0.8, list = FALSE))
+
+pcos_train_nn <- pcos_nn[train_index, ]
+pcos_test_nn <- pcos_nn[-train_index, ]
+
+str(pcos_train_nn)
+str(pcos_test_nn)
+
+```
+
+```{R}
+# Split the train data into train and validation sets
+
+labels = as.numeric(pcos_train_nn[ , "PCOS_Diagnosis"]) -1
+pcos_train_nn$PCOS_Diagnosis <- NULL
+
+str(labels)
+
+train_index <- createDataPartition(labels, p = 0.9, list = FALSE)
+
+x_train_nn <- pcos_train_nn[train_index, ]
+y_train_nn <- labels[train_index]
+x_validation_nn <- pcos_train_nn[-train_index, ]
+y_validation_nn <- labels[-train_index]
+
+```
+
+```{R}
+# One hot encode the variables since they are all factors
+
+train_class <- sapply(x_train_nn, class)
+#print(train_class)
+val_class <- sapply(x_validation_nn, class)
+#print(val_class)
+
+# one-hot encode 
+x_train_nn = data.frame(one_hot(data.table(x_train_nn)))
+x_validation_nn = data.frame(one_hot(data.table(x_validation_nn)))
+str(x_train_nn)
+str(x_validation_nn)
+
+```
+
+
+```{R}
+# Model 8: Neural Network 
+
+```
+
+
+##### Compare the models 
+```{R}
+# compare <- resamples(list(L = lasso, R = ridge, E = enet, RF = m_rf, G = gbm, SL = svm, SR = svm2))
+# summary(compare)
+```
