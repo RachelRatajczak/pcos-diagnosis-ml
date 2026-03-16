@@ -1,44 +1,49 @@
-# PCOS Diagnosis Machine Learning
+# PCOS Diagnosis ML
+Predicting Polycystic Ovary Syndrome from clinical indicators using machine learning in R
 
-This project uses machine learning to predict Polycystic Ovary Syndrome (PCOS) based on common patient risk factors. The goal is to identify key indicators and provide predictive tools to aid early diagnosis.
+![R](https://img.shields.io/badge/R-RMarkdown-purple) ![ML](https://img.shields.io/badge/Domain-Clinical%20ML-green) ![Accuracy](https://img.shields.io/badge/Best%20Accuracy-97.5%25-brightgreen)
+
+## Clinical context
+PCOS affects an estimated 8–13% of people of reproductive age and is one of the most underdiagnosed endocrine conditions globally. Late or missed diagnosis is associated with increased risk of type 2 diabetes, cardiovascular disease, and infertility. This project builds and evaluates a suite of ML classifiers to identify high-risk patients from routine clinical measurements, supporting earlier, data-driven screening.
 
 ## Dataset
-
-The dataset comes from Kaggle: [PCOS Diagnosis Dataset](https://www.kaggle.com/datasets/samikshadalvi/pcos-diagnosis-dataset).  
-It contains 1000 entries with five main features: Age, BMI, Menstrual Irregularity, Testosterone Level, and Antral Follicle Count. The target variable is **PCOS Diagnosis** (0 = No, 1 = Yes).
-
-## Project Structure
-
-- data/ ← CSV dataset
-- notebooks/ ← R Markdown file with analysis, modeling, and plots
-- report/ ← PDF of the full project report
-- README.md ← This file
-
+Kaggle PCOS Diagnosis Dataset — 1,000 patient records with five clinical features: Age, BMI, Menstrual Irregularity, Testosterone Level, and Antral Follicle Count. Target: PCOS Diagnosis (0 = No, 1 = Yes). Class imbalance addressed with SMOTE prior to model training.
 
 ## Methods
-- **Data Exploration & Visualization:** Histograms, boxplots, scatterplots, correlation analysis
-- **Preprocessing:** Scaling numeric features, SMOTE for balancing classes
-- **Models Trained:** Logistic Regression (Lasso, Ridge, Elastic Net), Random Forest, Gradient Boosted Trees, Support Vector Machine (Linear & Radial), Neural Network
-- **Evaluation Metrics:** Accuracy, Kappa, Precision, Recall, F1-score, AUC-ROC
+- **Exploration:** Histograms, boxplots, scatterplots, correlation analysis
+- **Preprocessing:** Numeric feature scaling, SMOTE for class balancing
+- **Models:** Logistic Regression (Lasso, Ridge, Elastic Net), Random Forest, Gradient Boosted Trees, SVM (Linear + Radial), Neural Network
+- **Evaluation:** Accuracy, Kappa, Precision, Recall, F1, AUC-ROC
 
-## Key Findings
-- **Best Model:** SVM with radial kernel (Accuracy: 97.49%, Kappa: 0.949)  
-- **Important Features:** Menstrual irregularity, BMI, testosterone level, antral follicle count  
-- Neural network showed slightly higher recall but lower overall balance  
+## Results
+| Model | Accuracy | Kappa |
+|---|---|---|
+| SVM (Radial) | **97.5%** | **0.949** |
+| Gradient Boosted Trees | — | — |
+| Neural Network | High recall | Lower balance |
 
-## How to Use
-1. Clone the repository:
+**Key finding:** Menstrual irregularity, BMI, and testosterone level were the strongest predictors. The SVM radial kernel achieved the best precision/recall balance. The neural network showed higher recall but lower overall consistency — a meaningful trade-off in clinical screening where false negatives carry real cost.
+
+## Clinical significance
+In screening settings, recall (sensitivity) often matters more than raw accuracy — a missed positive means a patient goes undiagnosed. This project explicitly evaluates that trade-off across models. Feature importance findings align with established clinical literature on PCOS risk factors, lending interpretability confidence to the outputs.
+
+## Project structure
+```
+pcos-diagnosis-ml/
+├── data/          # Kaggle PCOS dataset (CSV)
+├── notebooks/     # pcos_analysis.Rmd — full analysis pipeline
+├── report/        # PCOS_ML_Report.pdf
+└── README.md
+```
+
+## How to run
 ```bash
 git clone https://github.com/RachelRatajczak/pcos-diagnosis-ml.git
 ```
+Open `notebooks/pcos_analysis.Rmd` in RStudio and knit to reproduce the full analysis.  
+Dependencies: `caret`, `DMwR2`, `ggplot2`, `e1071`, `randomForest`, `gbm`, `nnet`
 
-2. Open the notebooks/pcos_analysis.Rmd in RStudio to explore the analysis and run the code.
-3. View the full report in report/PCOS_ML_Report.pdf.
-
-References
-
+## References
 1. Dalvi, S. (2025). PCOS diagnosis dataset. Kaggle.
-
 2. World Health Organization. Polycystic Ovary Syndrome. WHO Fact Sheet, 2025.
-
 3. Kim Kijun. PCOS Diagnosis ML Prediction with R. Kaggle, 2025.
