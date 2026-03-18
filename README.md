@@ -1,6 +1,8 @@
 # PCOS Diagnosis ML
 Predicting Polycystic Ovary Syndrome from clinical indicators using machine learning in R
 
+> Graduate coursework — University of Illinois Springfield, Machine Learning (CSC 534)
+
 ![R](https://img.shields.io/badge/R-RMarkdown-purple) ![ML](https://img.shields.io/badge/Domain-Clinical%20ML-green) ![Accuracy](https://img.shields.io/badge/Best%20Accuracy-97.5%25-brightgreen)
 
 ## Clinical context
